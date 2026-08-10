@@ -1,5 +1,6 @@
 let datosExcelRaw = [];
-let datosExcel = [];
+let datosExcel = [];       // Todos los registros
+let datosFiltrados = [];   // Registros filtrados por año
 let nombresColumnas = [];
 let filaActual = 0;
 
@@ -28,6 +29,18 @@ function obtenerIndiceColumna(palabrasClave) {
 function getValByKeywords(fila, palabrasClave) {
   const idx = obtenerIndiceColumna(palabrasClave);
   return (idx !== -1 && fila[idx] !== undefined) ? fila[idx] : "";
+}
+
+function obtenerAnioDeFila(fila) {
+  const fechaRaw = getValByKeywords(fila, ['registrado', 'marca temporal', 'fecha']);
+  const fechaFormateada = formatearFecha(fechaRaw);
+  if (fechaFormateada && fechaFormateada !== '-') {
+    const partes = fechaFormateada.split('/');
+    if (partes.length === 3) {
+      return partes[2].substring(0, 4);
+    }
+  }
+  return 'S/A';
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -73,6 +86,7 @@ window.addEventListener('DOMContentLoaded', () => {
           return filaObj;
         });
 
+        // Ordenamiento numérico por Legajo
         datosExcel.sort((a, b) => {
           const rawA = getValByKeywords(a, ['agente legajo', 'legajo']);
           const rawB = getValByKeywords(b, ['agente legajo', 'legajo']);
@@ -89,9 +103,9 @@ window.addEventListener('DOMContentLoaded', () => {
           return 0;
         });
 
-        poblarSelector();
+        poblarSelectorAnios();
+        filtrarPorAnio('TODOS');
         construirTablaModal();
-        mostrarFila(0);
       } else {
         alert("El archivo declara.xlsx está vacío.");
       }
@@ -102,46 +116,77 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/* POBLAR SELECTOR INCLUYENDO EL AÑO DE PRESENTACIÓN */
-function poblarSelector() {
+/* DETECTA Y CARGA LOS AÑOS DISPONIBLES */
+function poblarSelectorAnios() {
+  const selectAnio = document.getElementById('selectorAnio');
+  selectAnio.innerHTML = '<option value="TODOS">Todos los años</option>';
+
+  const aniosUnicos = new Set();
+  datosExcel.forEach(fila => {
+    const anio = obtenerAnioDeFila(fila);
+    if (anio !== 'S/A') aniosUnicos.add(anio);
+  });
+
+  Array.from(aniosUnicos).sort((a, b) => b - a).forEach(anio => {
+    const option = document.createElement('option');
+    option.value = anio;
+    option.textContent = `Año ${anio}`;
+    selectAnio.appendChild(option);
+  });
+}
+
+/* FILTRA AGENTES SEGÚN EL AÑO */
+function filtrarPorAnio(anioSeleccionado) {
+  if (anioSeleccionado === 'TODOS') {
+    datosFiltrados = [...datosExcel];
+  } else {
+    datosFiltrados = datosExcel.filter(fila => obtenerAnioDeFila(fila) === String(anioSeleccionado));
+  }
+
+  poblarSelectorAgentes();
+  if (datosFiltrados.length > 0) {
+    mostrarFila(0);
+  } else {
+    limpiarFormulario();
+  }
+}
+
+/* POBLA EL SELECTOR CON LOS AGENTES DEL AÑO SELECCIONADO */
+function poblarSelectorAgentes() {
   const select = document.getElementById('selectorFilas');
   select.innerHTML = '';
 
-  datosExcel.forEach((fila, index) => {
+  if (datosFiltrados.length === 0) {
+    const option = document.createElement('option');
+    option.value = "";
+    option.textContent = "Sin registros para este año";
+    select.appendChild(option);
+    return;
+  }
+
+  datosFiltrados.forEach((fila, index) => {
     const option = document.createElement('option');
     option.value = index;
     
     const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']) || 'S/L';
     const nombre = getValByKeywords(fila, ['nombre y apellido', 'agente', 'nombre']) || 'Sin Nombre';
     const dni = getValByKeywords(fila, ['dni', 'documento']) || 'S/D';
-    
-    // Extracción de fecha y año
-    const fechaRaw = getValByKeywords(fila, ['registrado', 'marca temporal', 'fecha']);
-    const fechaFormateada = formatearFecha(fechaRaw);
-    
-    let anio = 'S/A';
-    if (fechaFormateada && fechaFormateada !== '-') {
-      const partes = fechaFormateada.split('/');
-      if (partes.length === 3) {
-        anio = partes[2].substring(0, 4);
-      }
-    }
 
-    option.textContent = `[Año: ${anio}] - Legajo: ${legajo} - ${nombre} (DNI: ${dni})`;
+    option.textContent = `Legajo: ${legajo} - ${nombre} (DNI: ${dni})`;
     select.appendChild(option);
   });
 }
 
 function mostrarFila(index) {
-  if (index < 0 || index >= datosExcel.length) return;
+  if (index < 0 || index >= datosFiltrados.length) return;
   
   filaActual = parseInt(index);
-  const fila = datosExcel[filaActual];
+  const fila = datosFiltrados[filaActual];
 
   document.getElementById('selectorFilas').value = filaActual;
-  document.getElementById('contador').textContent = `Fila ${filaActual + 1} de ${datosExcel.length}`;
+  document.getElementById('contador').textContent = `${filaActual + 1} de ${datosFiltrados.length}`;
   document.getElementById('btnPrev').disabled = (filaActual === 0);
-  document.getElementById('btnNext').disabled = (filaActual === datosExcel.length - 1);
+  document.getElementById('btnNext').disabled = (filaActual === datosFiltrados.length - 1);
 
   const fechaRealizacion = formatearFechaHora(getValByKeywords(fila, ['registrado', 'marca temporal', 'fecha']));
   const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']);
@@ -190,18 +235,36 @@ function mostrarFila(index) {
   
   const padLegajo = String(legajo || '0000').padStart(4, '0');
   const padDni = String(dni || '0000').slice(-4);
-  
-  // Extraemos año actual o de la DDJJ para el ID de firma
-  let anioFirma = '2026';
-  if (fechaRealizacion && fechaRealizacion !== '-') {
-    const partes = fechaRealizacion.split('/');
-    if (partes.length >= 3) {
-      anioFirma = partes[2].substring(0, 4);
-    }
-  }
+  const anioDDJJ = obtenerAnioDeFila(fila);
 
-  setVal('sig-id', `DDJJ-${anioFirma}-${padLegajo}-${padDni}`);
+  setVal('sig-id', `DDJJ-${anioDDJJ}-${padLegajo}-${padDni}`);
   setVal('sig-hash', `a7f98b${filaActual + 100}c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b`);
+}
+
+function limpiarFormulario() {
+  document.getElementById('contador').textContent = "0 de 0";
+  setVal('val-fecha-realizacion', '-');
+  setVal('val-legajo', '-');
+  setVal('val-nombre', '-');
+  setVal('val-domicilio', '-');
+  setVal('val-dni', '-');
+  setVal('val-nacimiento', '-');
+  setVal('val-tel', '-');
+  setVal('val-lugar', '-');
+  setVal('val-estado-civil', '-');
+  setVal('val-ingreso', '-');
+  setVal('val-estudios', '-');
+  setVal('val-titulo', '-');
+  setVal('val-enfermedad', '-');
+  setVal('val-lugar-trabajo', '-');
+  setVal('val-actividad', '-');
+  setVal('val-talle-camisa', '-');
+  setVal('val-talle-remera', '-');
+  setVal('val-talle-pantalon', '-');
+  setVal('val-talle-calzado', '-');
+  document.getElementById('contenedor-conyuge').innerHTML = '';
+  document.getElementById('contenedor-hijos').innerHTML = '';
+  document.getElementById('contenedor-derechohabientes').innerHTML = '';
 }
 
 function renderizarHijosEstructurados(containerId, fila) {
@@ -330,7 +393,14 @@ function construirTablaModal() {
   datosExcel.forEach((fila, index) => {
     const tr = document.createElement('tr');
     tr.onclick = () => {
-      mostrarFila(index);
+      const indexEnFiltrados = datosFiltrados.indexOf(fila);
+      if (indexEnFiltrados !== -1) {
+        mostrarFila(indexEnFiltrados);
+      } else {
+        document.getElementById('selectorAnio').value = 'TODOS';
+        filtrarPorAnio('TODOS');
+        mostrarFila(index);
+      }
       cerrarModalListado();
     };
 

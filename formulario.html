@@ -9,23 +9,32 @@
 </head>
 <body>
 
-  <!-- BARRAS DE CONTROL Y NAVEGACIÓN (NO IMPRESA) -->
+  <!-- BARRAS DE CONTROL Y NAVEGACIÓN (CON FILTRO DE AÑO) -->
   <div class="control-bar no-print">
     <div class="control-group">
       <a href="index.html" class="btn-secondary" style="text-decoration: none; padding: 8px 14px; border-radius: 6px;">🏠 Inicio</a>
       <button class="btn-secondary" onclick="abrirModalListado()">📜 Presentaciones</button>
     </div>
 
+    <!-- FILTRO POR AÑO -->
     <div class="control-group">
-      <label for="selectorFilas"><strong>Legajos:</strong></label>
+      <label for="selectorAnio"><strong>Año:</strong></label>
+      <select id="selectorAnio" onchange="filtrarPorAnio(this.value)">
+        <option value="TODOS">Todos</option>
+      </select>
+    </div>
+
+    <!-- AGENTES FILTRADOS -->
+    <div class="control-group">
+      <label for="selectorFilas"><strong>Agente:</strong></label>
       <select id="selectorFilas" onchange="irAFila(this.value)">
-        <option value="">Cargando datos de declara.xlsx...</option>
+        <option value="">Cargando datos...</option>
       </select>
     </div>
 
     <div class="control-group">
       <button id="btnPrev" onclick="navegar(-1)">◀ Ant.</button>
-      <span id="contador" class="counter-badge">Fila 0 de 0</span>
+      <span id="contador" class="counter-badge">0 de 0</span>
       <button id="btnNext" onclick="navegar(1)">Sig. ▶</button>
     </div>
 

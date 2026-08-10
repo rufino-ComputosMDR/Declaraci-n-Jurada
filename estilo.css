@@ -16,7 +16,7 @@
   }
   
   /* ==========================================
-     2. BARRAS DE CONTROL Y NAVEGACIÓN (NO IMPRESO)
+     2. BARRAS DE CONTROL Y NAVEGACIÓN
      ========================================== */
   .control-bar {
     max-width: 210mm;
@@ -40,7 +40,7 @@
   
   .control-bar select, 
   .control-bar button {
-    padding: 8px 14px;
+    padding: 8px 12px;
     font-size: 13px;
     border-radius: 6px;
     border: 1px solid #cbd5e1;
@@ -51,7 +51,7 @@
   }
   
   .control-bar select {
-    max-width: 320px;
+    max-width: 280px;
     font-weight: 500;
   }
   
@@ -125,7 +125,7 @@
     font-weight: 600;
   }
   
-  /* SECCIONES Y BLOQUES ACLARADOS */
+  /* SECCIONES CON FONDO ACLARADO */
   .section-block {
     margin-bottom: 12px;
   }
@@ -135,7 +135,7 @@
     font-weight: 700;
     color: #1e3a8a;
     text-transform: uppercase;
-    background-color: #e2e8f0; /* Fondo gris/azul suave */
+    background-color: #e2e8f0;
     padding: 4px 8px;
     border-left: 4px solid #2563eb;
     margin-bottom: 8px;
@@ -292,7 +292,121 @@
   }
   
   /* ==========================================
-     6. REGLAS ESPECÍFICAS DE IMPRESIÓN (PDF / A4)
+     6. PANTALLA DE INICIO (INDEX)
+     ========================================== */
+  body.bg-portal {
+    background-color: #0f172a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .portal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 480px;
+    padding: 36px 28px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
+  
+  .portal-logo {
+    max-height: 70px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 16px;
+  }
+  
+  .portal-title {
+    font-size: 22px;
+    color: #1e3a8a;
+    font-weight: 800;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  
+  .portal-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+  
+  .divider {
+    border: 0;
+    height: 1px;
+    background: #e2e8f0;
+    margin: 20px 0;
+  }
+  
+  .menu-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .btn-option {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #0f172a;
+    transition: all 0.2s ease;
+  }
+  
+  .btn-option:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+  }
+  
+  .btn-option .icon {
+    font-size: 24px;
+    margin-right: 14px;
+  }
+  
+  .btn-option .text {
+    text-align: left;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .btn-option .text strong {
+    font-size: 14px;
+    color: #1e3a8a;
+  }
+  
+  .btn-option .text small {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+  
+  .btn-option .arrow {
+    font-size: 16px;
+    color: #2563eb;
+    font-weight: bold;
+  }
+  
+  .portal-footer {
+    margin-top: 24px;
+    font-size: 10px;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  
+  /* ==========================================
+     7. IMPRESIÓN (PDF / IMPRESORA)
      ========================================== */
   @page {
     size: A4 portrait;
@@ -355,118 +469,3 @@
       break-inside: avoid;
     }
   }
-  /* ==========================================
-   7. ESTILOS PANTALLA DE INICIO (PORTAL / INDEX)
-   ========================================== */
-body.bg-portal {
-  background-color: #0f172a; /* Fondo oscuro elegante */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0;
-  padding: 20px;
-}
-
-.portal-card {
-  background: #ffffff;
-  width: 100%;
-  max-width: 480px;
-  padding: 36px 28px;
-  border-radius: 16px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
-  text-align: center;
-}
-
-.portal-logo {
-  max-height: 70px;
-  width: auto;
-  object-fit: contain;
-  margin-bottom: 16px;
-}
-
-.portal-title {
-  font-size: 22px;
-  color: #1e3a8a;
-  font-weight: 800;
-  margin-bottom: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.portal-subtitle {
-  font-size: 13px;
-  color: #64748b;
-  font-weight: 500;
-  margin-bottom: 20px;
-}
-
-.divider {
-  border: 0;
-  height: 1px;
-  background: #e2e8f0;
-  margin: 20px 0;
-}
-
-.menu-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.btn-option {
-  display: flex;
-  align-items: center;
-  padding: 14px 16px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  text-decoration: none;
-  color: #0f172a;
-  transition: all 0.2s ease;
-}
-
-.btn-option:hover {
-  background: #eff6ff;
-  border-color: #2563eb;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
-}
-
-.btn-option .icon {
-  font-size: 24px;
-  margin-right: 14px;
-}
-
-.btn-option .text {
-  text-align: left;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.btn-option .text strong {
-  font-size: 14px;
-  color: #1e3a8a;
-}
-
-.btn-option .text small {
-  font-size: 11px;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-.btn-option .arrow {
-  font-size: 16px;
-  color: #2563eb;
-  font-weight: bold;
-}
-
-.portal-footer {
-  margin-top: 24px;
-  font-size: 10px;
-  color: #94a3b8;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
