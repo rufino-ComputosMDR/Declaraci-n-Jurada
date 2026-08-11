@@ -105,7 +105,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
         poblarSelectorAnios();
         filtrarPorAnio('TODOS');
-        construirTablaModal();
       } else {
         alert("El archivo declara.xlsx está vacío.");
       }
@@ -135,7 +134,7 @@ function poblarSelectorAnios() {
   });
 }
 
-/* FILTRA AGENTES SEGÚN EL AÑO */
+/* FILTRA AGENTES Y TABLA DEL MODAL SEGÚN EL AÑO */
 function filtrarPorAnio(anioSeleccionado) {
   if (anioSeleccionado === 'TODOS') {
     datosFiltrados = [...datosExcel];
@@ -144,6 +143,8 @@ function filtrarPorAnio(anioSeleccionado) {
   }
 
   poblarSelectorAgentes();
+  construirTablaModal(); // Actualiza el modal con los registros del año activo
+
   if (datosFiltrados.length > 0) {
     mostrarFila(0);
   } else {
@@ -313,7 +314,7 @@ function renderizarHijosEstructurados(containerId, fila) {
       htmlGeneral += `
         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
           <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 11px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
-            👶 ${bloque.titulo}
+            ${bloque.titulo}
           </h4>
           ${htmlCampos}
         </div>
@@ -365,6 +366,7 @@ function renderizarRangoEnGrid(containerId, fila, idxInicio, idxFin) {
   }
 }
 
+/* CONSTRUYE EL MODAL FILTRADO SEGÚN EL AÑO SELECCIONADO */
 function construirTablaModal() {
   const idxFecha = obtenerIndiceColumna(['registrado', 'marca']);
   const idxLegajo = obtenerIndiceColumna(['agente legajo', 'legajo']);
@@ -390,17 +392,11 @@ function construirTablaModal() {
     headerTr.appendChild(th);
   });
 
-  datosExcel.forEach((fila, index) => {
+  // Muestra únicamente los registros filtrados en el modal
+  datosFiltrados.forEach((fila, index) => {
     const tr = document.createElement('tr');
     tr.onclick = () => {
-      const indexEnFiltrados = datosFiltrados.indexOf(fila);
-      if (indexEnFiltrados !== -1) {
-        mostrarFila(indexEnFiltrados);
-      } else {
-        document.getElementById('selectorAnio').value = 'TODOS';
-        filtrarPorAnio('TODOS');
-        mostrarFila(index);
-      }
+      mostrarFila(index);
       cerrarModalListado();
     };
 
