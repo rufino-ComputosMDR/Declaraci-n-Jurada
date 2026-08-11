@@ -14,6 +14,7 @@
     <div class="control-group">
       <a href="index.html" class="btn-secondary" style="text-decoration: none; padding: 8px 14px; border-radius: 6px;">🏠 Inicio</a>
       <button class="btn-secondary" onclick="abrirModalListado()">📜 Presentaciones</button>
+      <button class="btn-secondary" onclick="abrirModalPendientes()" style="background-color: #eab308 !important; color: #1e293b !important; border-color: #ca8a04 !important;">⚠️ Falta Presentar</button>
     </div>
 
     <!-- FILTRO POR AÑO -->
@@ -192,7 +193,7 @@
 
   </div>
 
-  <!-- MODAL LISTADO -->
+  <!-- MODAL LISTADO PRESENTACIONES -->
   <div id="modalListado" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
@@ -208,6 +209,33 @@
             <tr id="encabezadoTablaModal"></tr>
           </thead>
           <tbody id="cuerpoTablaModal"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PENDIENTES -->
+  <div id="modalPendientes" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header" style="background: #854d0e;">
+        <h3>⚠️ Agentes Pendientes de Presentación</h3>
+        <div>
+          <button class="btn-secondary" onclick="exportarPendientesExcel()" style="font-size: 12px; background-color: #15803d !important; border-color: #166534 !important;">📥 Descargar Excel</button>
+          <button onclick="cerrarModalPendientes()" style="background: transparent; border: none; color: white; font-size: 16px; cursor: pointer; margin-left: 10px;">✖</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="resumenPendientes" style="margin-bottom: 12px; font-weight: bold; font-size: 12px; color: #334155;"></div>
+        <table class="modal-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Legajo</th>
+              <th>Nombre y Apellido</th>
+              <th>DNI</th>
+            </tr>
+          </thead>
+          <tbody id="cuerpoTablaPendientes"></tbody>
         </table>
       </div>
     </div>

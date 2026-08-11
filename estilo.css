@@ -469,3 +469,10 @@
       break-inside: avoid;
     }
   }
+  
+  /* ==========================================
+     8. ESTILOS PENDIENTES
+     ========================================== */
+  #modalPendientes .modal-table td {
+    padding: 8px 10px;
+  }

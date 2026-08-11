@@ -4,6 +4,9 @@ let datosFiltrados = [];   // Registros filtrados por año
 let nombresColumnas = [];
 let filaActual = 0;
 
+let datosLegajosRaw = [];
+let agentesPendientes = [];
+
 function col2idx(colStr) {
   let str = colStr.toUpperCase();
   let sum = 0;
@@ -149,6 +152,12 @@ function filtrarPorAnio(anioSeleccionado) {
     mostrarFila(0);
   } else {
     limpiarFormulario();
+  }
+
+  // Si el modal de pendientes está abierto, recalcular según el nuevo filtro
+  const modalPendientes = document.getElementById('modalPendientes');
+  if (modalPendientes && modalPendientes.style.display === 'flex' && datosLegajosRaw.length > 0) {
+    calcularYMostrarPendientes();
   }
 }
 
@@ -447,3 +456,147 @@ function formatearFecha(val) {
 
 function navegar(sentido) { mostrarFila(filaActual + sentido); }
 function irAFila(valor) { if (valor !== "") mostrarFila(valor); }
+
+/* ==========================================
+   FUNCIONALIDAD: AGENTES PENDIENTES
+   ========================================== */
+
+function abrirModalPendientes() {
+  document.getElementById('modalPendientes').style.display = 'flex';
+  
+  if (datosLegajosRaw.length === 0) {
+    cargarPadronLegajos();
+  } else {
+    calcularYMostrarPendientes();
+  }
+}
+
+function cerrarModalPendientes() {
+  document.getElementById('modalPendientes').style.display = 'none';
+}
+
+function cargarPadronLegajos() {
+  fetch('legajos.xlsx')
+    .then(response => {
+      if (!response.ok) throw new Error("No se encuentra legajos.xlsx");
+      return response.arrayBuffer();
+    })
+    .then(data => {
+      const workbook = XLSX.read(data, { type: 'array' });
+      const primeraHoja = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[primeraHoja];
+      
+      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+      if (rawData.length > 1) {
+        let filaEncabezadoIdx = 0;
+        for (let i = 0; i < rawData.length; i++) {
+          if (rawData[i].some(celda => String(celda).trim() !== "")) {
+            filaEncabezadoIdx = i;
+            break;
+          }
+        }
+
+        const cabeceras = rawData[filaEncabezadoIdx].map(c => String(c).toLowerCase().trim());
+        const idxLegajo = cabeceras.findIndex(c => c.includes('legajo'));
+        const idxNombre = cabeceras.findIndex(c => c.includes('nombre') || c.includes('agente') || c.includes('apellido'));
+        const idxDni = cabeceras.findIndex(c => c.includes('dni') || c.includes('documento'));
+
+        datosLegajosRaw = rawData.slice(filaEncabezadoIdx + 1)
+          .filter(row => row.some(celda => celda !== undefined && celda !== null && String(celda).trim() !== ""))
+          .map(row => ({
+            legajo: String(row[idxLegajo !== -1 ? idxLegajo : 0] || "").trim(),
+            nombre: String(row[idxNombre !== -1 ? idxNombre : 1] || "Sin Nombre").trim(),
+            dni: String(row[idxDni !== -1 ? idxDni : 2] || "-").trim()
+          }));
+
+        calcularYMostrarPendientes();
+      } else {
+        alert("El archivo legajos.xlsx está vacío.");
+      }
+    })
+    .catch(error => {
+      console.error("Error al cargar legajos.xlsx:", error);
+      alert("Error: Verifica que 'legajos.xlsx' esté en la misma carpeta del proyecto.");
+    });
+}
+
+function calcularYMostrarPendientes() {
+  const legajosPresentados = new Set();
+  datosFiltrados.forEach(fila => {
+    const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']);
+    if (legajo) legajosPresentados.add(String(legajo).trim());
+  });
+
+  agentesPendientes = datosLegajosRaw.filter(agente => {
+    return agente.legajo && !legajosPresentados.has(agente.legajo);
+  });
+
+  agentesPendientes.sort((a, b) => {
+    const numA = parseInt(a.legajo);
+    const numB = parseInt(b.legajo);
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+    return a.legajo.localeCompare(b.legajo);
+  });
+
+  const tbody = document.getElementById('cuerpoTablaPendientes');
+  const resumen = document.getElementById('resumenPendientes');
+  
+  const selectAnio = document.getElementById('selectorAnio');
+  const anioTexto = selectAnio ? selectAnio.options[selectAnio.selectedIndex].text : 'Seleccionado';
+
+  resumen.textContent = `Total pendientes (${anioTexto}): ${agentesPendientes.length} agente(s)`;
+  tbody.innerHTML = '';
+
+  if (agentesPendientes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 15px; color: #166534; font-weight:bold;">¡Todos los agentes de este periodo han presentado su declaración jurada!</td></tr>';
+    return;
+  }
+
+  agentesPendientes.forEach((agente, index) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${index + 1}</strong></td>
+      <td><strong>${agente.legajo}</strong></td>
+      <td>${agente.nombre}</td>
+      <td>${agente.dni}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+/* DESCARGA DE LISTADO PENDIENTE A EXCEL */
+function exportarPendientesExcel() {
+  if (!agentesPendientes || agentesPendientes.length === 0) {
+    alert("No hay agentes pendientes para exportar.");
+    return;
+  }
+
+  const selectAnio = document.getElementById('selectorAnio');
+  const anioVal = selectAnio ? selectAnio.value : 'TODOS';
+
+  // Mapear los datos para la planilla
+  const dataExcel = agentesPendientes.map((a, idx) => ({
+    'N°': idx + 1,
+    'Legajo': a.legajo,
+    'Nombre y Apellido': a.nombre,
+    'DNI': a.dni
+  }));
+
+  // Crear hoja y libro de trabajo
+  const worksheet = XLSX.utils.json_to_sheet(dataExcel);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Pendientes");
+
+  // Ajustar anchos de columna automáticos
+  worksheet['!cols'] = [
+    { wch: 6 },
+    { wch: 12 },
+    { wch: 35 },
+    { wch: 15 }
+  ];
+
+  // Generar y descargar archivo
+  const nombreArchivo = `Agentes_Pendientes_DDJJ_${anioVal}.xlsx`;
+  XLSX.writeFile(workbook, nombreArchivo);
+}
