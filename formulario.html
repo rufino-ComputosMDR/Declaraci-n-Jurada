@@ -9,7 +9,7 @@
 </head>
 <body>
 
-  <!-- BARRAS DE CONTROL Y NAVEGACIÓN (CON FILTRO DE AÑO) -->
+  <!-- BARRAS DE CONTROL Y NAVEGACIÓN -->
   <div class="control-bar no-print">
     <div class="control-group">
       <a href="index.html" class="btn-secondary" style="text-decoration: none; padding: 8px 14px; border-radius: 6px;">🏠 Inicio</a>
@@ -47,10 +47,10 @@
     
     <!-- ENCABEZADO CON LOGO Y TÍTULOS -->
     <div class="doc-header">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <img src="logo.png" alt="Escudo Municipal" style="max-height: 48px; width: auto; object-fit: contain;">
-        <div>
-          <h1>DECLARACIÓN JURADA DE PERSONAL MUNICIPAL</h1>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <img src="logo.png" alt="Escudo Municipal" class="header-logo" style="max-height: 60px; width: auto; object-fit: contain;">
+        <div class="header-title">
+          <h1>DECLARACIÓN JURADA DEL EMPLEADO</h1>
           <div class="subtitle">Actualización Integral de Datos Personales, Familiares y Derechohabientes</div>
         </div>
       </div>
@@ -171,30 +171,30 @@
     </div>
 
     <!-- DECLARACIÓN Y FIRMA -->
-    <div style="font-size: 8.5pt; color: #475569; margin-top: 10px; text-align: justify; font-style: italic; line-height: 1.2;">
-      Declaro bajo juramento que los datos consignados en esta presentación son correctos, exactos y completos, asumiendo el compromiso de comunicar formalmente cualquier modificación que se produzca en los mismos.
+    <div style="font-size: 8pt; color: #475569; margin-top: 4px; text-align: justify; font-style: italic; line-height: 1.05;">
+      Declaro bajo juramento que todos los datos consignados son veraces y exactos, de acuerdo a mi leal saber y entender. Asimismo, me notifico que cualquier falsedad, ocultamiento u omisión dará motivo a las más severas sanciones disciplinarias.
     </div>
 
     <div class="signature-section">
       <div class="signature-grid">
         <div>
-          <p style="font-size: 9px; margin-bottom: 2px;"><strong>Firmante:</strong> <span id="sig-nombre">-</span></p>
-          <p style="font-size: 9px; margin-bottom: 2px;"><strong>DNI N°:</strong> <span id="sig-dni">-</span></p>
-          <p style="font-size: 9px; margin-bottom: 2px;"><strong>Fecha:</strong> <span id="sig-fecha">-</span></p>
-          <p style="font-size: 8px; color: #166534; font-weight: bold; margin-top: 4px;">✔ REGISTRADO Y FIRMADO DIGITALMENTE</p>
+          <p style="font-size: 8.5px; margin-bottom: 1px;"><strong>Firmante:</strong> <span id="sig-nombre">-</span></p>
+          <p style="font-size: 8.5px; margin-bottom: 1px;"><strong>DNI N°:</strong> <span id="sig-dni">-</span></p>
+          <p style="font-size: 8.5px; margin-bottom: 1px;"><strong>Fecha:</strong> <span id="sig-fecha">-</span></p>
+          <p style="font-size: 7.5px; color: #166534; font-weight: bold; margin-top: 1px;">✔ REGISTRADO Y FIRMADO DIGITALMENTE</p>
         </div>
         <div>
-          <p style="font-size: 8px; font-weight: bold; color: #475569; margin-bottom: 2px;">ID Transacción / Hash:</p>
-          <div id="sig-id" style="font-size: 8px; font-weight: bold; color: #1e3a8a;">-</div>
+          <p style="font-size: 7.5px; font-weight: bold; color: #475569; margin-bottom: 1px;">ID Transacción / Hash:</p>
+          <div id="sig-id" style="font-size: 7.5px; font-weight: bold; color: #1e3a8a;">-</div>
           <div id="sig-hash" class="digital-hash">-</div>
         </div>
       </div>
     </div>
 
-  </div>
+  </div> <!-- FIN DE .a4-page -->
 
   <!-- MODAL LISTADO PRESENTACIONES -->
-  <div id="modalListado" class="modal-overlay">
+  <div id="modalListado" class="modal-overlay no-print">
     <div class="modal-content">
       <div class="modal-header">
         <h3>📜 Listado de Declaraciones Presentadas</h3>
@@ -215,7 +215,7 @@
   </div>
 
   <!-- MODAL PENDIENTES -->
-  <div id="modalPendientes" class="modal-overlay">
+  <div id="modalPendientes" class="modal-overlay no-print">
     <div class="modal-content">
       <div class="modal-header" style="background: #854d0e;">
         <h3>⚠️ Agentes Pendientes de Presentación</h3>

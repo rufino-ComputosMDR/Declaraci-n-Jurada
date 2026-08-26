@@ -7,6 +7,7 @@ let filaActual = 0;
 let datosLegajosRaw = [];
 let agentesPendientes = [];
 
+// Convierte letras de columna de Excel (ej: 'A', 'Z', 'AA', 'AU') a índice base 0
 function col2idx(colStr) {
   let str = colStr.toUpperCase();
   let sum = 0;
@@ -34,8 +35,18 @@ function getValByKeywords(fila, palabrasClave) {
   return (idx !== -1 && fila[idx] !== undefined) ? fila[idx] : "";
 }
 
+// Búsqueda por palabra clave con respaldo por índice directo (letra de columna Excel)
+function getValByKeywordsOrCol(fila, palabrasClave, letraColumna) {
+  let val = getValByKeywords(fila, palabrasClave);
+  if (val !== undefined && val !== null && String(val).trim() !== "") {
+    return val;
+  }
+  const idx = col2idx(letraColumna);
+  return (fila[idx] !== undefined && fila[idx] !== null) ? fila[idx] : "";
+}
+
 function obtenerAnioDeFila(fila) {
-  const fechaRaw = getValByKeywords(fila, ['registrado', 'marca temporal', 'fecha']);
+  const fechaRaw = getValByKeywordsOrCol(fila, ['registrado', 'marca temporal', 'fecha'], 'A');
   const fechaFormateada = formatearFecha(fechaRaw);
   if (fechaFormateada && fechaFormateada !== '-') {
     const partes = fechaFormateada.split('/');
@@ -70,8 +81,9 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const cabecerasOriginales = datosExcelRaw[filaEncabezadoIdx];
+        const limiteCol = col2idx('AU'); // Mapeo extendido hasta la columna AU (47 columnas, índice 0 a 46)
 
-        for (let i = 0; i <= col2idx('BI'); i++) {
+        for (let i = 0; i <= limiteCol; i++) {
           nombresColumnas[i] = (cabecerasOriginales[i] && cabecerasOriginales[i].toString().trim() !== "") 
             ? cabecerasOriginales[i].toString().trim() 
             : `Columna ${i + 1}`;
@@ -83,16 +95,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
         datosExcel = filasProcesadas.map(row => {
           let filaObj = {};
-          for (let i = 0; i <= col2idx('BI'); i++) {
+          for (let i = 0; i <= limiteCol; i++) {
             filaObj[i] = (row[i] !== undefined) ? row[i] : "";
           }
           return filaObj;
         });
 
-        // Ordenamiento numérico por Legajo
+        // Ordenamiento por Legajo (Columna AU)
         datosExcel.sort((a, b) => {
-          const rawA = getValByKeywords(a, ['agente legajo', 'legajo']);
-          const rawB = getValByKeywords(b, ['agente legajo', 'legajo']);
+          const rawA = getValByKeywordsOrCol(a, ['legajo', 'nro. de legajo'], 'AU');
+          const rawB = getValByKeywordsOrCol(b, ['legajo', 'nro. de legajo'], 'AU');
           
           const legA = parseInt(rawA);
           const legB = parseInt(rawB);
@@ -118,9 +130,10 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/* DETECTA Y CARGA LOS AÑOS DISPONIBLES */
 function poblarSelectorAnios() {
   const selectAnio = document.getElementById('selectorAnio');
+  if (!selectAnio) return;
+  
   selectAnio.innerHTML = '<option value="TODOS">Todos los años</option>';
 
   const aniosUnicos = new Set();
@@ -137,7 +150,6 @@ function poblarSelectorAnios() {
   });
 }
 
-/* FILTRA AGENTES Y TABLA DEL MODAL SEGÚN EL AÑO */
 function filtrarPorAnio(anioSeleccionado) {
   if (anioSeleccionado === 'TODOS') {
     datosFiltrados = [...datosExcel];
@@ -146,7 +158,7 @@ function filtrarPorAnio(anioSeleccionado) {
   }
 
   poblarSelectorAgentes();
-  construirTablaModal(); // Actualiza el modal con los registros del año activo
+  construirTablaModal();
 
   if (datosFiltrados.length > 0) {
     mostrarFila(0);
@@ -154,16 +166,15 @@ function filtrarPorAnio(anioSeleccionado) {
     limpiarFormulario();
   }
 
-  // Si el modal de pendientes está abierto, recalcular según el nuevo filtro
   const modalPendientes = document.getElementById('modalPendientes');
   if (modalPendientes && modalPendientes.style.display === 'flex' && datosLegajosRaw.length > 0) {
     calcularYMostrarPendientes();
   }
 }
 
-/* POBLA EL SELECTOR CON LOS AGENTES DEL AÑO SELECCIONADO */
 function poblarSelectorAgentes() {
   const select = document.getElementById('selectorFilas');
+  if (!select) return;
   select.innerHTML = '';
 
   if (datosFiltrados.length === 0) {
@@ -178,44 +189,58 @@ function poblarSelectorAgentes() {
     const option = document.createElement('option');
     option.value = index;
     
-    const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']) || 'S/L';
-    const nombre = getValByKeywords(fila, ['nombre y apellido', 'agente', 'nombre']) || 'Sin Nombre';
-    const dni = getValByKeywords(fila, ['dni', 'documento']) || 'S/D';
+    const legajo = getValByKeywordsOrCol(fila, ['legajo', 'nro. de legajo'], 'AU') || 'S/L';
+    const nombre = getValByKeywordsOrCol(fila, ['apellido y nombre', 'nombre y apellido'], 'C') || 'Sin Nombre';
+    const dni = getValByKeywordsOrCol(fila, ['dni n°', 'dni', 'documento'], 'D') || 'S/D';
 
-    option.textContent = `Legajo: ${legajo} - ${nombre} (DNI: ${dni})`;
+    option.textContent = (legajo !== 'S/L') ? `Legajo: ${legajo} - ${nombre} (DNI: ${dni})` : `${nombre} (DNI: ${dni})`;
     select.appendChild(option);
   });
 }
 
 function mostrarFila(index) {
-  if (index < 0 || index >= datosFiltrados.length) return;
+  if (!datosFiltrados || datosFiltrados.length === 0) {
+    limpiarFormulario();
+    return;
+  }
+
+  if (index < 0) index = 0;
+  if (index >= datosFiltrados.length) index = datosFiltrados.length - 1;
   
   filaActual = parseInt(index);
   const fila = datosFiltrados[filaActual];
 
-  document.getElementById('selectorFilas').value = filaActual;
-  document.getElementById('contador').textContent = `${filaActual + 1} de ${datosFiltrados.length}`;
-  document.getElementById('btnPrev').disabled = (filaActual === 0);
-  document.getElementById('btnNext').disabled = (filaActual === datosFiltrados.length - 1);
+  const selectorFilas = document.getElementById('selectorFilas');
+  if (selectorFilas) selectorFilas.value = filaActual;
 
-  const fechaRealizacion = formatearFechaHora(getValByKeywords(fila, ['registrado', 'marca temporal', 'fecha']));
-  const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']);
-  const nombre = getValByKeywords(fila, ['nombre y apellido', 'agente']);
-  const domicilio = getValByKeywords(fila, ['domicilio actual', 'domicilio']);
-  const dni = getValByKeywords(fila, ['dni']);
-  const nacimiento = getValByKeywords(fila, ['fecha de nacimiento', 'nacimiento']);
-  const telefono = getValByKeywords(fila, ['teléfonos de contactos', 'teléfono', 'telefono', 'celular']);
-  const lugar = getValByKeywords(fila, ['lugar']);
-  const estadoCivil = getValByKeywords(fila, ['estado civil']);
-  const fechaIngreso = getValByKeywords(fila, ['fecha de ing', 'ingreso']);
-  const estudios = getValByKeywords(fila, ['estudios curs', 'estudios']);
-  const titulo = getValByKeywords(fila, ['titulo obten', 'título']);
-  const enfermedad = getValByKeywords(fila, ['enfermedad']);
-  const lugarTrabajo = getValByKeywords(fila, ['lugar de trab', 'dependencia']);
-  const actividad = getValByKeywords(fila, ['actividad', 'función']);
+  const contador = document.getElementById('contador');
+  if (contador) contador.textContent = `${filaActual + 1} de ${datosFiltrados.length}`;
+
+  const btnPrev = document.getElementById('btnPrev');
+  if (btnPrev) btnPrev.disabled = (filaActual === 0);
+
+  const btnNext = document.getElementById('btnNext');
+  if (btnNext) btnNext.disabled = (filaActual === datosFiltrados.length - 1);
+
+  // Mapeo directo por posición (A a AU)
+  const fechaRealizacion = formatearFechaHora(getValByKeywordsOrCol(fila, ['registrado', 'marca temporal', 'fecha'], 'A'));
+  const legajo           = getValByKeywordsOrCol(fila, ['legajo', 'nro. de legajo'], 'AU');
+  const nombre           = getValByKeywordsOrCol(fila, ['apellido y nombre', 'nombre y apellido'], 'C');
+  const dni              = getValByKeywordsOrCol(fila, ['dni n°', 'dni'], 'D');
+  const nacimiento       = getValByKeywordsOrCol(fila, ['fecha de nacimiento', 'nacimiento'], 'E');
+  const domicilio        = getValByKeywordsOrCol(fila, ['domicilio actual', 'domicilio'], 'F');
+  const lugar            = getValByKeywordsOrCol(fila, ['lugar / localidad', 'lugar', 'localidad'], 'G');
+  const telefono         = getValByKeywordsOrCol(fila, ['teléfono contacto', 'teléfono', 'telefono'], 'H');
+  const estadoCivil      = getValByKeywordsOrCol(fila, ['estado civil'], 'I');
+  const estudios         = getValByKeywordsOrCol(fila, ['estudios cursados'], 'J');
+  const titulo           = getValByKeywordsOrCol(fila, ['título obtenido', 'titulo'], 'K');
+  const enfermedad       = getValByKeywordsOrCol(fila, ['enfermedad/patología', 'enfermedad'], 'L');
+  const lugarTrabajo     = getValByKeywordsOrCol(fila, ['lugar de trabajo', 'dependencia'], 'M');
+  const actividad        = getValByKeywordsOrCol(fila, ['actividad/función', 'actividad'], 'N');
+  const fechaIngreso     = getValByKeywordsOrCol(fila, ['fecha de ingreso', 'ingreso'], 'O');
 
   setVal('val-fecha-realizacion', fechaRealizacion);
-  setVal('val-legajo', legajo);
+  setVal('val-legajo', legajo || 'S/L');
   setVal('val-nombre', nombre);
   setVal('val-domicilio', domicilio);
   setVal('val-dni', dni);
@@ -230,14 +255,20 @@ function mostrarFila(index) {
   setVal('val-lugar-trabajo', lugarTrabajo);
   setVal('val-actividad', actividad);
 
-  setVal('val-talle-camisa', getValByKeywords(fila, ['talle camisa']));
-  setVal('val-talle-remera', getValByKeywords(fila, ['talle remera']));
-  setVal('val-talle-pantalon', getValByKeywords(fila, ['talle pantal']));
-  setVal('val-talle-calzado', getValByKeywords(fila, ['talle calzado']));
+  // Talles (P, Q, R, S)
+  setVal('val-talle-camisa', getValByKeywordsOrCol(fila, ['talle camisa'], 'P'));
+  setVal('val-talle-remera', getValByKeywordsOrCol(fila, ['talle remera'], 'Q'));
+  setVal('val-talle-pantalon', getValByKeywordsOrCol(fila, ['talle pantalón', 'talle pantalon'], 'R'));
+  setVal('val-talle-calzado', getValByKeywordsOrCol(fila, ['talle calzado'], 'S'));
 
-  renderizarRangoEnGrid('contenedor-conyuge', fila, col2idx('U'), col2idx('X'));
+  // CÓNYUGE: Columnas T a V
+  renderizarRangoEnGrid('contenedor-conyuge', fila, col2idx('T'), col2idx('V'));
+  
+  // HIJOS: Bloques W a AN
   renderizarHijosEstructurados('contenedor-hijos', fila);
-  renderizarRangoEnGrid('contenedor-derechohabientes', fila, col2idx('BA'), col2idx('BI'));
+  
+  // DERECHOHABIENTES: Columnas AO a AT
+  renderizarDerechohabientesEstructurados('contenedor-derechohabientes', fila);
 
   setVal('sig-nombre', nombre);
   setVal('sig-dni', dni);
@@ -252,7 +283,9 @@ function mostrarFila(index) {
 }
 
 function limpiarFormulario() {
-  document.getElementById('contador').textContent = "0 de 0";
+  const contador = document.getElementById('contador');
+  if (contador) contador.textContent = "0 de 0";
+
   setVal('val-fecha-realizacion', '-');
   setVal('val-legajo', '-');
   setVal('val-nombre', '-');
@@ -272,20 +305,32 @@ function limpiarFormulario() {
   setVal('val-talle-remera', '-');
   setVal('val-talle-pantalon', '-');
   setVal('val-talle-calzado', '-');
-  document.getElementById('contenedor-conyuge').innerHTML = '';
-  document.getElementById('contenedor-hijos').innerHTML = '';
-  document.getElementById('contenedor-derechohabientes').innerHTML = '';
+
+  const conyuge = document.getElementById('contenedor-conyuge');
+  if (conyuge) conyuge.innerHTML = '';
+
+  const hijos = document.getElementById('contenedor-hijos');
+  if (hijos) hijos.innerHTML = '';
+
+  const derechohabientes = document.getElementById('contenedor-derechohabientes');
+  if (derechohabientes) derechohabientes.innerHTML = '';
+
+  setVal('sig-nombre', '-');
+  setVal('sig-dni', '-');
+  setVal('sig-fecha', '-');
+  setVal('sig-id', '-');
+  setVal('sig-hash', '-');
 }
 
 function renderizarHijosEstructurados(containerId, fila) {
   const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = '';
 
   const bloquesHijos = [
-    { titulo: "Hijo / Carga N° 1", inicio: col2idx('Y'), fin: col2idx('AE') },
-    { titulo: "Hijo / Carga N° 2", inicio: col2idx('AF'), fin: col2idx('AL') },
-    { titulo: "Hijo / Carga N° 3", inicio: col2idx('AM'), fin: col2idx('AS') },
-    { titulo: "Hijo / Carga N° 4", inicio: col2idx('AT'), fin: col2idx('AZ') }
+    { titulo: "Hijo / Carga N° 1", inicio: col2idx('W'), fin: col2idx('AB') },
+    { titulo: "Hijo / Carga N° 2", inicio: col2idx('AC'), fin: col2idx('AH') },
+    { titulo: "Hijo / Carga N° 3", inicio: col2idx('AI'), fin: col2idx('AN') }
   ];
 
   let hayAlMenosUnHijo = false;
@@ -296,7 +341,7 @@ function renderizarHijosEstructurados(containerId, fila) {
     let htmlCampos = '<div class="form-grid cols-3">';
 
     for (let i = bloque.inicio; i <= bloque.fin; i++) {
-      const tituloCol = nombresColumnas[i];
+      const tituloCol = nombresColumnas[i] || `Columna ${i + 1}`;
       let valor = fila[i];
 
       if (valor !== undefined && valor !== null && String(valor).trim() !== "") {
@@ -321,8 +366,8 @@ function renderizarHijosEstructurados(containerId, fila) {
 
     if (tieneDatosEsteHijo) {
       htmlGeneral += `
-        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
-          <h4 style="margin: 0 0 6px 0; color: #1e3a8a; font-size: 11px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; margin-bottom: 6px;">
+          <h4 style="margin: 0 0 4px 0; color: #1e3a8a; font-size: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px;">
             ${bloque.titulo}
           </h4>
           ${htmlCampos}
@@ -338,15 +383,62 @@ function renderizarHijosEstructurados(containerId, fila) {
   }
 }
 
+function renderizarDerechohabientesEstructurados(containerId, fila) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  const paresDerechohabientes = [
+    { idxNombre: col2idx('AO'), idxDni: col2idx('AP') },
+    { idxNombre: col2idx('AQ'), idxDni: col2idx('AR') },
+    { idxNombre: col2idx('AS'), idxDni: col2idx('AT') }
+  ];
+
+  let hayAlMenosUno = false;
+  let htmlGeneral = '';
+
+  paresDerechohabientes.forEach(pareja => {
+    let nombreVal = fila[pareja.idxNombre];
+    let dniVal = fila[pareja.idxDni];
+
+    const tieneNombre = nombreVal !== undefined && nombreVal !== null && String(nombreVal).trim() !== "";
+    const tieneDni = dniVal !== undefined && dniVal !== null && String(dniVal).trim() !== "";
+
+    if (tieneNombre || tieneDni) {
+      hayAlMenosUno = true;
+
+      htmlGeneral += `
+        <div class="form-grid cols-2" style="margin-bottom: 4px;">
+          <div class="field">
+            <label>NOMBRE Y APELLIDO</label>
+            <div class="box">${tieneNombre ? nombreVal : '-'}</div>
+          </div>
+          <div class="field">
+            <label>DNI</label>
+            <div class="box">${tieneDni ? dniVal : '-'}</div>
+          </div>
+        </div>
+      `;
+    }
+  });
+
+  if (!hayAlMenosUno) {
+    container.innerHTML = '<div class="empty-section-msg">No registra derechohabientes declarados.</div>';
+  } else {
+    container.innerHTML = htmlGeneral;
+  }
+}
+
 function renderizarRangoEnGrid(containerId, fila, idxInicio, idxFin) {
   const container = document.getElementById(containerId);
+  if (!container) return;
   container.innerHTML = '';
 
   let html = '<div class="form-grid cols-3">';
   let hayDatos = false;
 
   for (let i = idxInicio; i <= idxFin; i++) {
-    const tituloColumna = nombresColumnas[i];
+    const tituloColumna = nombresColumnas[i] || `Columna ${i + 1}`;
     let valor = fila[i];
 
     if (valor !== undefined && valor !== null && String(valor).trim() !== "") {
@@ -375,22 +467,18 @@ function renderizarRangoEnGrid(containerId, fila, idxInicio, idxFin) {
   }
 }
 
-/* CONSTRUYE EL MODAL FILTRADO SEGÚN EL AÑO SELECCIONADO */
 function construirTablaModal() {
-  const idxFecha = obtenerIndiceColumna(['registrado', 'marca']);
-  const idxLegajo = obtenerIndiceColumna(['agente legajo', 'legajo']);
-  const idxNombre = obtenerIndiceColumna(['nombre y apellido', 'agente']);
-  const idxDni = obtenerIndiceColumna(['dni']);
+  const idxFecha = col2idx('A');
+  const idxLegajo = col2idx('AU');
+  const idxNombre = col2idx('C');
+  const idxDni = col2idx('D');
 
-  const indicesColumnas = [
-    idxFecha !== -1 ? idxFecha : 0,
-    idxLegajo !== -1 ? idxLegajo : 1,
-    idxNombre !== -1 ? idxNombre : 2,
-    idxDni !== -1 ? idxDni : 4
-  ];
+  const indicesColumnas = [idxFecha, idxLegajo, idxNombre, idxDni];
 
   const headerTr = document.getElementById('encabezadoTablaModal');
   const tbody = document.getElementById('cuerpoTablaModal');
+
+  if (!headerTr || !tbody) return;
 
   headerTr.innerHTML = '<th>#</th>';
   tbody.innerHTML = '';
@@ -401,7 +489,6 @@ function construirTablaModal() {
     headerTr.appendChild(th);
   });
 
-  // Muestra únicamente los registros filtrados en el modal
   datosFiltrados.forEach((fila, index) => {
     const tr = document.createElement('tr');
     tr.onclick = () => {
@@ -422,25 +509,35 @@ function construirTablaModal() {
   });
 }
 
-function abrirModalListado() { document.getElementById('modalListado').style.display = 'flex'; }
-function cerrarModalListado() { document.getElementById('modalListado').style.display = 'none'; }
+function abrirModalListado() {
+  const el = document.getElementById('modalListado');
+  if (el) el.style.display = 'flex';
+}
+
+function cerrarModalListado() {
+  const el = document.getElementById('modalListado');
+  if (el) el.style.display = 'none';
+}
 
 function imprimirTablaModal() {
-  document.body.classList.add('printing-modal');
   window.print();
-  document.body.classList.remove('printing-modal');
 }
 
 function setVal(id, valor) {
   const el = document.getElementById(id);
-  if (el) el.textContent = (valor !== undefined && valor !== "") ? valor : "-";
+  if (el) el.textContent = (valor !== undefined && valor !== null && String(valor).trim() !== "") ? valor : "-";
 }
 
 function formatearFechaHora(val) {
   if (!val) return "-";
   if (typeof val === 'number') {
     const date = XLSX.SSF.parse_date_code(val);
-    if(date) return `${date.d}/${date.m}/${date.y} ${date.H}:${date.M}:${date.S}`;
+    if (date) {
+      const h = String(date.H).padStart(2, '0');
+      const m = String(date.M).padStart(2, '0');
+      const s = String(date.S).padStart(2, '0');
+      return `${date.d}/${date.m}/${date.y} ${h}:${m}:${s}`;
+    }
   }
   return String(val);
 }
@@ -449,7 +546,7 @@ function formatearFecha(val) {
   if (!val) return "-";
   if (typeof val === 'number') {
     const date = XLSX.SSF.parse_date_code(val);
-    if(date) return `${date.d}/${date.m}/${date.y}`;
+    if (date) return `${date.d}/${date.m}/${date.y}`;
   }
   return String(val);
 }
@@ -457,12 +554,10 @@ function formatearFecha(val) {
 function navegar(sentido) { mostrarFila(filaActual + sentido); }
 function irAFila(valor) { if (valor !== "") mostrarFila(valor); }
 
-/* ==========================================
-   FUNCIONALIDAD: AGENTES PENDIENTES
-   ========================================== */
-
+/* PENDIENTES */
 function abrirModalPendientes() {
-  document.getElementById('modalPendientes').style.display = 'flex';
+  const modal = document.getElementById('modalPendientes');
+  if (modal) modal.style.display = 'flex';
   
   if (datosLegajosRaw.length === 0) {
     cargarPadronLegajos();
@@ -472,7 +567,8 @@ function abrirModalPendientes() {
 }
 
 function cerrarModalPendientes() {
-  document.getElementById('modalPendientes').style.display = 'none';
+  const modal = document.getElementById('modalPendientes');
+  if (modal) modal.style.display = 'none';
 }
 
 function cargarPadronLegajos() {
@@ -517,14 +613,14 @@ function cargarPadronLegajos() {
     })
     .catch(error => {
       console.error("Error al cargar legajos.xlsx:", error);
-      alert("Error: Verifica que 'legajos.xlsx' esté en la misma carpeta del proyecto.");
+      alert("Error: Verifica que 'legajos.xlsx' esté en la misma carpeta.");
     });
 }
 
 function calcularYMostrarPendientes() {
   const legajosPresentados = new Set();
   datosFiltrados.forEach(fila => {
-    const legajo = getValByKeywords(fila, ['agente legajo', 'legajo']);
+    const legajo = getValByKeywordsOrCol(fila, ['legajo', 'nro. de legajo'], 'AU');
     if (legajo) legajosPresentados.add(String(legajo).trim());
   });
 
@@ -541,7 +637,8 @@ function calcularYMostrarPendientes() {
 
   const tbody = document.getElementById('cuerpoTablaPendientes');
   const resumen = document.getElementById('resumenPendientes');
-  
+  if (!tbody || !resumen) return;
+
   const selectAnio = document.getElementById('selectorAnio');
   const anioTexto = selectAnio ? selectAnio.options[selectAnio.selectedIndex].text : 'Seleccionado';
 
@@ -565,7 +662,6 @@ function calcularYMostrarPendientes() {
   });
 }
 
-/* DESCARGA DE LISTADO PENDIENTE A EXCEL */
 function exportarPendientesExcel() {
   if (!agentesPendientes || agentesPendientes.length === 0) {
     alert("No hay agentes pendientes para exportar.");
@@ -575,7 +671,6 @@ function exportarPendientesExcel() {
   const selectAnio = document.getElementById('selectorAnio');
   const anioVal = selectAnio ? selectAnio.value : 'TODOS';
 
-  // Mapear los datos para la planilla
   const dataExcel = agentesPendientes.map((a, idx) => ({
     'N°': idx + 1,
     'Legajo': a.legajo,
@@ -583,12 +678,10 @@ function exportarPendientesExcel() {
     'DNI': a.dni
   }));
 
-  // Crear hoja y libro de trabajo
   const worksheet = XLSX.utils.json_to_sheet(dataExcel);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Pendientes");
 
-  // Ajustar anchos de columna automáticos
   worksheet['!cols'] = [
     { wch: 6 },
     { wch: 12 },
@@ -596,7 +689,6 @@ function exportarPendientesExcel() {
     { wch: 15 }
   ];
 
-  // Generar y descargar archivo
   const nombreArchivo = `Agentes_Pendientes_DDJJ_${anioVal}.xlsx`;
   XLSX.writeFile(workbook, nombreArchivo);
 }
