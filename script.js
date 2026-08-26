@@ -261,8 +261,8 @@ function mostrarFila(index) {
   setVal('val-talle-pantalon', getValByKeywordsOrCol(fila, ['talle pantalón', 'talle pantalon'], 'R'));
   setVal('val-talle-calzado', getValByKeywordsOrCol(fila, ['talle calzado'], 'S'));
 
-  // CÓNYUGE: Columnas T a V
-  renderizarRangoEnGrid('contenedor-conyuge', fila, col2idx('T'), col2idx('V'));
+  // CÓNYUGE: Columnas T (Nombre), U (Fecha Nacimiento), V (DNI)
+  renderizarConyugeEstructurado('contenedor-conyuge', fila);
   
   // HIJOS: Bloques W a AN
   renderizarHijosEstructurados('contenedor-hijos', fila);
@@ -320,6 +320,56 @@ function limpiarFormulario() {
   setVal('sig-fecha', '-');
   setVal('sig-id', '-');
   setVal('sig-hash', '-');
+}
+
+function renderizarConyugeEstructurado(containerId, fila) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  const idxNombre = col2idx('T');
+  const idxFechaNac = col2idx('U'); // Columna U asignada a Fecha de Nacimiento
+  const idxDni = col2idx('V');      // Columna V asignada a DNI
+
+  let nombreVal = fila[idxNombre];
+  let fechaNacVal = fila[idxFechaNac];
+  let dniVal = fila[idxDni];
+
+  const tieneNombre = nombreVal !== undefined && nombreVal !== null && String(nombreVal).trim() !== "";
+  const tieneDni = dniVal !== undefined && dniVal !== null && String(dniVal).trim() !== "";
+  const tieneFecha = fechaNacVal !== undefined && fechaNacVal !== null && String(fechaNacVal).trim() !== "";
+
+  // Formatear la fecha ingresando el número serial de Excel a la función de conversión
+  let fechaFormateada = "-";
+  if (tieneFecha) {
+    fechaFormateada = (typeof fechaNacVal === 'number' || !isNaN(Number(fechaNacVal))) 
+      ? formatearFecha(Number(fechaNacVal)) 
+      : String(fechaNacVal);
+  }
+
+  if (!tieneNombre && !tieneDni && !tieneFecha) {
+    container.innerHTML = '<div class="empty-section-msg">No registra datos del cónyuge / conviviente.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="form-grid cols-3">
+      <div class="field" style="grid-column: span 2;">
+        <label>Nombre y Apellido</label>
+        <div class="box">${tieneNombre ? nombreVal : '-'}</div>
+      </div>
+      <div class="field">
+        <label>DNI N°</label>
+        <div class="box">${tieneDni ? dniVal : '-'}</div>
+      </div>
+    </div>
+    <div class="form-grid cols-3" style="margin-top: 4px;">
+      <div class="field">
+        <label>Fecha Nacimiento</label>
+        <div class="box">${fechaFormateada}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderizarHijosEstructurados(containerId, fila) {
